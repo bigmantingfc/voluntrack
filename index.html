@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VolunTrack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#3498db', // A nice blue
+              secondary: '#2ecc71', // A complementary green
+              accent: '#e74c3c', // An accent color
+              lightgray: '#f8f9fa',
+              darkgray: '#343a40',
+              "primary-dark": '#2980b9',
+              "secondary-dark": '#27ae60',
+              "dashboard-bg": "#edf2f7", 
+              "dashboard-card": "#ffffff",
+              "dashboard-text-primary": "#2d3748", 
+              "dashboard-text-secondary": "#718096", 
+              "dashboard-accent-purple": "#805ad5",
+              "dashboard-accent-teal": "#319795",
+              chartColors: ['#3498db', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#1abc9c', '#34495e', '#d35400', '#8e44ad', '#27ae60'],
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            animation: {
+              'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+              'fade-in-down': 'fadeInDown 0.8s ease-out forwards',
+              'slide-in-left': 'slideInLeft 0.8s ease-out forwards',
+              'subtle-pulse': 'subtlePulse 2.5s infinite ease-in-out',
+              'bg-pan': 'bgPan 10s linear infinite alternate',
+              'cardGlow': 'cardGlow 2s infinite alternate ease-in-out', // Subtle glow on hover
+              'pulse-bar': 'pulseBar 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            animationDelay: { // Custom animation delay utilities
+              '100': '100ms', '200': '200ms', '300': '300ms', '400': '400ms', '500': '500ms',
+              '600': '600ms', '700': '700ms', '800': '800ms', '900': '900ms', '1000': '1000ms',
+            },
+            keyframes: {
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              fadeInDown: {
+                '0%': { opacity: '0', transform: 'translateY(-20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              slideInLeft: {
+                '0%': { opacity: '0', transform: 'translateX(-30px)' },
+                '100%': { opacity: '1', transform: 'translateX(0)' },
+              },
+              subtlePulse: {
+                '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+                '50%': { transform: 'scale(1.03)', opacity: '0.95' },
+              },
+              bgPan: { // Ensure backgroundSize is set for this to work (e.g., bg-[length:200%_200%])
+                '0%': { backgroundPosition: '0% 50%' },
+                '100%': { backgroundPosition: '100% 50%' },
+              },
+              cardGlow: {
+                '0%, 100%': { boxShadow: '0 4px 15px -3px rgba(52, 152, 219, 0.1), 0 2px 8px -4px rgba(52, 152, 219, 0.08)' }, // Softer base shadow
+                '50%': { boxShadow: '0 10px 25px -3px rgba(52, 152, 219, 0.3), 0 4px 12px -4px rgba(52, 152, 219, 0.2)' } // More pronounced glow
+              },
+              pulseBar: {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '0.7' },
+              }
+            }
+          }
+        },
+        // Plugin to make animation-delay utilities work
+        plugins: [
+            function({ addUtilities, theme, e }) {
+              const delays = theme('animationDelay');
+              const utilities = Object.keys(delays).map(key => ({
+                [`.${e(`animation-delay-${key}`)}`]: { animationDelay: delays[key] },
+              }));
+              addUtilities(utilities, ['responsive', 'hover']);
+            }
+        ]
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.6.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "recharts": "https://esm.sh/recharts@^2.15.3",
+    "@google/genai": "https://esm.sh/@google/genai@latest",
+    "tailwindcss/": "https://esm.sh/tailwindcss@^4.1.7/"
+  }
+}
+</script>
+<style>
+  /* Base Tailwind styles (if any specific overrides) */
+  .default-body-style {
+    background-color: #edf2f7; /* dashboard-bg */
+    color: #2d3748; /* dashboard-text-primary */
+  }
+
+  .landing-page-body-style {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-x: hidden;
+    /* background: #000; */ /* Removed to allow .bg-container to show */
+    color: #fff;
+  }
+  
+  .landing-page-body-style * {
+      /* Resetting margin/padding for landing page specifically if it was removed from global reset */
+      /* margin: 0; 
+      padding: 0; */
+      box-sizing: border-box;
+  }
+
+  /* Animated Background for New Landing Page */
+  .landing-page-body-style .bg-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */ /* Applied by gradient-overlay */
+      overflow: hidden;
+  }
+
+  .landing-page-body-style .floating-shapes {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+  }
+
+  .landing-page-body-style .shape {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      animation: floatShape 20s infinite linear; /* Renamed to avoid conflict if 'float' is generic */
+      backdrop-filter: blur(5px);
+  }
+
+  .landing-page-body-style .shape:nth-child(1) { width: 80px; height: 80px; left: 10%; animation-delay: 0s; }
+  .landing-page-body-style .shape:nth-child(2) { width: 120px; height: 120px; left: 20%; animation-delay: -5s; }
+  .landing-page-body-style .shape:nth-child(3) { width: 60px; height: 60px; left: 30%; animation-delay: -10s; }
+  .landing-page-body-style .shape:nth-child(4) { width: 100px; height: 100px; left: 40%; animation-delay: -15s; }
+  .landing-page-body-style .shape:nth-child(5) { width: 90px; height: 90px; left: 50%; animation-delay: -3s; }
+  .landing-page-body-style .shape:nth-child(6) { width: 70px; height: 70px; left: 60%; animation-delay: -8s; }
+  .landing-page-body-style .shape:nth-child(7) { width: 110px; height: 110px; left: 70%; animation-delay: -12s; }
+  .landing-page-body-style .shape:nth-child(8) { width: 85px; height: 85px; left: 80%; animation-delay: -7s; }
+
+  @keyframes floatShape { /* Renamed */
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+  }
+
+  /* Gradient Overlay for New Landing Page */
+  .landing-page-body-style .gradient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8), rgba(255, 154, 0, 0.6));
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+  }
+
+  @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+  }
+
+  /* Navigation for New Landing Page */
+  .landing-page-body-style nav.landing-nav { /* Added .landing-nav class for specificity */
+      position: fixed;
+      top: 0;
+      width: 100%;
+      padding: 20px 50px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(20px);
+      z-index: 1000;
+      transition: all 0.3s ease;
+  }
+
+  .landing-page-body-style .landing-nav .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+  }
+
+  .landing-page-body-style .landing-nav .logo {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ff9a00, #667eea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent; /* Fallback for browsers that don't support background-clip */
+  }
+
+  .landing-page-body-style .landing-nav .nav-links {
+      display: flex;
+      gap: 30px;
+      list-style: none;
+  }
+
+  .landing-page-body-style .landing-nav .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      position: relative;
+  }
+
+  .landing-page-body-style .landing-nav .nav-links a:hover {
+      color: #ff9a00;
+      transform: translateY(-2px);
+  }
+
+  .landing-page-body-style .landing-nav .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #ff9a00;
+      transition: width 0.3s ease;
+  }
+
+  .landing-page-body-style .landing-nav .nav-links a:hover::after {
+      width: 100%;
+  }
+
+  /* Hero Section for New Landing Page */
+  .landing-page-body-style .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 0 50px;
+      position: relative;
+  }
+
+  .landing-page-body-style .hero-content {
+      max-width: 900px;
+      animation: fadeInUpLanding 1s ease; /* Renamed */
+  }
+
+  .landing-page-body-style .hero-title {
+      font-size: 4.5rem;
+      font-weight: 900;
+      margin-bottom: 30px;
+      background: linear-gradient(135deg, #fff, #ff9a00, #667eea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent; /* Fallback */
+      line-height: 1.2;
+      animation: titleGlow 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes titleGlow {
+      from { filter: drop-shadow(0 0 20px rgba(255, 154, 0, 0.3)); }
+      to { filter: drop-shadow(0 0 40px rgba(102, 126, 234, 0.5)); }
+  }
+
+  .landing-page-body-style .hero-subtitle {
+      font-size: 1.4rem;
+      margin-bottom: 40px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 300;
+      line-height: 1.6;
+      animation: fadeInUpLanding 1s ease 0.3s both; /* Renamed */
+  }
+
+  .landing-page-body-style .cta-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUpLanding 1s ease 0.6s both; /* Renamed */
+  }
+
+  .landing-page-body-style .btn {
+      padding: 16px 40px;
+      border: none;
+      border-radius: 50px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      position: relative;
+      overflow: hidden;
+  }
+
+  .landing-page-body-style .btn-primary {
+      background: linear-gradient(135deg, #ff9a00, #667eea);
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(255, 154, 0, 0.3);
+  }
+
+  .landing-page-body-style .btn-primary:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(255, 154, 0, 0.4);
+  }
+
+  .landing-page-body-style .btn-secondary {
+      background: transparent;
+      color: #fff;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+  }
+
+  .landing-page-body-style .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #ff9a00;
+      transform: translateY(-5px);
+  }
+
+  /* Features Section for New Landing Page */
+  .landing-page-body-style .features {
+      padding: 120px 50px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(20px); /* For the section itself */
+      position: relative; /* For z-indexing if needed over bg-container */
+      z-index: 1;
+  }
+
+  .landing-page-body-style .features-container {
+      max-width: 1400px;
+      margin: 0 auto;
+  }
+
+  .landing-page-body-style .section-title {
+      text-align: center;
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #fff, #ff9a00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent; /* Fallback */
+  }
+
+  .landing-page-body-style .section-subtitle {
+      text-align: center;
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 80px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+  }
+
+  .landing-page-body-style .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 40px;
+  }
+
+  .landing-page-body-style .feature-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px); /* For cards */
+      border-radius: 20px;
+      padding: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+  }
+
+  .landing-page-body-style .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 154, 0, 0.1), transparent);
+      transition: left 0.6s ease;
+  }
+
+  .landing-page-body-style .feature-card:hover::before {
+      left: 100%;
+  }
+
+  .landing-page-body-style .feature-card:hover {
+      transform: translateY(-10px);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .landing-page-body-style .feature-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #ff9a00, #667eea);
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 24px;
+      color: #fff; /* Ensure icon color is visible */
+  }
+
+  .landing-page-body-style .feature-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #fff;
+  }
+
+  .landing-page-body-style .feature-description {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+  }
+
+  /* Stats Section for New Landing Page */
+  .landing-page-body-style .stats {
+      padding: 100px 50px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(255, 154, 0, 0.2));
+      position: relative; /* For z-indexing */
+      z-index: 1;
+  }
+
+  .landing-page-body-style .stats-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 60px;
+      text-align: center;
+  }
+
+  .landing-page-body-style .stat-item {
+      animation: countUpLanding 2s ease; /* Renamed */
+  }
+
+  .landing-page-body-style .stat-number {
+      font-size: 4rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff9a00, #667eea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent; /* Fallback */
+      display: block;
+      margin-bottom: 10px;
+  }
+
+  .landing-page-body-style .stat-label {
+      font-size: 1.2rem;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+  }
+
+  /* Call to Action for New Landing Page */
+  .landing-page-body-style .cta {
+      padding: 120px 50px;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(20px); /* For CTA section */
+      position: relative; /* For z-indexing */
+      z-index: 1;
+  }
+
+  .landing-page-body-style .cta-content {
+      max-width: 800px;
+      margin: 0 auto;
+  }
+
+  .landing-page-body-style .cta-title {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, #fff, #ff9a00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent; /* Fallback */
+  }
+
+  .landing-page-body-style .cta-description {
+      font-size: 1.3rem;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 40px;
+      line-height: 1.6;
+  }
+
+  /* Animations for New Landing Page */
+  @keyframes fadeInUpLanding { /* Renamed */
+      from {
+          opacity: 0;
+          transform: translateY(30px);
+      }
+      to {
+          opacity: 1;
+          transform: translateY(0);
+      }
+  }
+
+  @keyframes countUpLanding { /* Renamed */
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Scroll animations for New Landing Page */
+  .landing-page-body-style .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.6s ease;
+  }
+
+  .landing-page-body-style .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+  }
+  
+  /* Responsive Design for New Landing Page */
+    @media (max-width: 768px) {
+        .landing-page-body-style .hero-title {
+            font-size: 3rem;
+        }
+        
+        .landing-page-body-style .cta-buttons {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .landing-page-body-style .features-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .landing-page-body-style nav.landing-nav { /* Ensure specificity */
+            padding: 15px 20px;
+        }
+        
+        .landing-page-body-style .hero, 
+        .landing-page-body-style .features, 
+        .landing-page-body-style .cta,
+        .landing-page-body-style .stats {
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        .landing-page-body-style .nav-container {
+            flex-direction: column;
+            gap: 10px;
+        }
+        .landing-page-body-style .nav-links {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    }
+
+  /* General scrollbar styling (optional, can be nice with dark themes) */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #2c2c2c;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #ff9a00;
+  }
+
+</style>
+</head>
+  <body class="font-sans antialiased default-body-style">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

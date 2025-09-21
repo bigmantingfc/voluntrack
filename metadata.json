@@ -1,0 +1,5 @@
+{
+  "name": "VolunTrack: Local Volunteer Opportunity Aggregator",
+  "description": "VolunTrack is a web application designed to be the central hub for student volunteerism. It aggregates local volunteer opportunities and provides robust impact tracking to foster social consciousness and encourage sustained engagement.",
+  "requestFramePermissions": []
+}
